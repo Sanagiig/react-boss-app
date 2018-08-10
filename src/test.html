@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+</head>
+
+<body>
+
+    <script>
+        function Promise(fn) {
+            var callbacks = [];
+            var state = 'pendding';
+            var value = null;
+
+            var handle = function (cb) {
+                if (state === 'pendding') {
+                    callbacks.push(cb);
+                    return;
+                }
+
+                var fn = state === 'fullfilled' ? cb.onFullfill : cb.onReject;
+                //当没有 onfullfill 或 onreject 的时候,直接调用下一个resolve 或 reject
+                if (fn == null) {
+                    fn = state === 'fullfilled' ? cb.resolve : cb.reject;
+                    fn(value);
+                    return;
+                }
+
+                value = fn(value);
+                //为什么是用resolve
+                cb.resolve(value);
+            }
+
+            var dispose = function (v) {
+                if (v instanceof Promise) {
+                    if (typeof v.then === 'function') {
+                        v.then(resolve, reject);
+                        return false;
+                    }
+                }
+                value = v;
+                return true;
+
+            }
+
+            var resolve = function (v) {
+                if (dispose(v)) {
+                    state = 'fullfilled';
+                    excute();
+                }
+            }
+
+            var reject = function (v) {
+                if (dispose(v)) {
+                    state = 'rejected';
+                    excute();
+                }
+            }
+
+            var excute = function () {
+                setTimeout(function () {
+                    callbacks.forEach(function (cb) {
+                        handle(cb);
+                    });
+                }, 0);
+            }
+
+            this.then = function (onFullfill, onReject) {
+                return new Promise(function (resolve, reject) {
+                    handle({
+                        onFullfill: onFullfill || null,
+                        onReject: onReject || null,
+                        resolve: resolve,
+                        reject: reject,
+                    })
+                });
+            }
+
+            fn(resolve, reject);
+        }
+
+        var p1 = new Promise(function (res, rej) {
+            setTimeout(function () {
+                console.log('p1 ok');
+                res(new Promise(function (resolve, reject) {
+                    setTimeout(function () {
+                        console.log('pp1 ook');
+                        reject('qqqq');
+                    }, 1000)
+                }));
+            }, 1110)
+        }).then(function (v) {
+            console.log('this is p2', v);
+            return 222
+        }, function (v) {
+            console.log('err is', v);
+            return 'xo';
+        }).then(function (v) {
+            console.log('this is p3', v);
+            return 444;
+        }, function (v) {
+            console.log('this is err', v);
+        })
+
+
+    </script>
+</body>
+
+</html>
